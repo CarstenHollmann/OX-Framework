@@ -76,6 +76,7 @@ import net.opengis.waterml.x20.TVPMetadataType;
 
 import org.apache.xmlbeans.XmlCursor;
 import org.apache.xmlbeans.XmlException;
+import org.apache.xmlbeans.XmlInteger;
 import org.apache.xmlbeans.XmlObject;
 import org.apache.xmlbeans.impl.values.XmlStringImpl;
 import org.n52.oxf.OXFException;
@@ -375,6 +376,8 @@ public class GenericObservationParser {
 
             if (result instanceof MeasureTypeImpl) {
                 features.add(createMeasureTypeFeature(omObservation, procedure));
+            } else if (result instanceof XmlInteger) {
+            	features.add(createMeasureTypeFeatureFromInteger(omObservation, procedure));
 			} else if (isWaterML200TimeSeriesObservationDocument(result)) {
 			    
 		        XmlObject xml = XmlUtil.getXmlAnyNodeFrom(result, "MeasurementTimeseries");
@@ -499,6 +502,37 @@ public class GenericObservationParser {
         String uom = result.getUom();
         OXFPhenomenonPropertyType phenPropType = new OXFPhenomenonPropertyType(urn, uom);
         OXFMeasureType resultValue = new OXFMeasureType(uom, result.getDoubleValue());
+    	
+        oxf_measurementType.initializeFeature(feature,
+                                              null,
+                                              "anyDescription",
+                                              null,// featureOfInterestValue.getGeometry(),
+                                              time,
+                                              procedure,
+                                              phenPropType,
+                                              feature,
+                                              resultValue);
+    	return feature;
+	}
+
+	private static OXFFeature createMeasureTypeFeatureFromInteger(OMObservationType omObservation, String procedure) {
+		XmlInteger result = (XmlInteger) omObservation.getResult();
+    	OXFMeasurementType oxf_measurementType = new OXFMeasurementType();
+        OXFFeature feature = new OXFFeature(omObservation.getFeatureOfInterest().getHref(), oxf_measurementType);
+        AbstractTimeObjectType abstractTimeObject = omObservation.getPhenomenonTime().getAbstractTimeObject();
+        ITime time = null;
+        if (abstractTimeObject instanceof TimeInstantTypeImpl) {
+        	TimePositionType timePosition = ((TimeInstantTypeImpl) abstractTimeObject).getTimePosition();
+        	time = TimeFactory.createTime(timePosition.getStringValue());
+		}
+        // take the end position if there is a time period
+        if (abstractTimeObject instanceof TimePeriodType) {
+        	TimePositionType endPosition = ((TimePeriodType) abstractTimeObject).getEndPosition();
+        	time = TimeFactory.createTime(endPosition.getStringValue());
+        }
+        String urn = omObservation.getObservedProperty().getHref();
+        OXFPhenomenonPropertyType phenPropType = new OXFPhenomenonPropertyType(urn, "");
+        OXFMeasureType resultValue = new OXFMeasureType("", Double.parseDouble(result.getBigIntegerValue().toString()));
     	
         oxf_measurementType.initializeFeature(feature,
                                               null,
